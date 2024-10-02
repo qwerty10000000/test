@@ -1,0 +1,70 @@
+print "nasm"
+
+
+
+; RAX, RCX, RDX, R8, R9, R10, R11 windows
+
+; RDI, RSI, RDX, RCX, R8, R9  linux
+
+;libc: make library! %libc.so.6
+
+msvcrt: make library! %msvcrt.dll
+
+Kernel32: make library! %Kernel32.dll
+
+;--------------------------------
+
+memcpy:  make routine! compose [[desc [pointer]  src [pointer] len [int64] return: [uint64]] (msvcrt) "memcpy"]
+
+&: func [ data] [ memcpy data data 0 ]
+
+;------------------------------------
+
+VirtualProtect: make routine! compose [[lpAddress[ pointer] dwSize [int64] flNewProtect [int64]  lpflOldProtect [ pointer]  return: [uint64]] (Kernel32) "VirtualProtect" ]
+
+PAGE_EXECUTE: to-integer #{10}
+PAGE_EXECUTE_READ: to-integer #{20}
+PAGE_EXECUTE_READWRITE: to-integer #{40}
+
+
+;--------------------------------------------------
+
+
+;---------------------------
+
+memory: to-binary make bitset! 16000
+
+&memory: & memory
+
+test: "ok"
+
+memcpy memory test 2
+
+
+;----------------------------------
+
+write %tmp.txt {
+
+ BITS 64
+
+mov rax , rcx
+add rax , rdx
+ret
+
+}
+call/console/wait "nasm.exe tmp.txt"
+
+tmp: read %tmp
+
+memcpy memory tmp length? tmp
+
+&protect: & protect: #{0000000000000000}
+
+
+VirtualProtect memory length? memory PAGE_EXECUTE_READWRITE &protect
+
+add: make routine! compose [[a [pointer] b [pointer] return: [pointer]]	&memory ]
+
+add 3 4
+
+halt
