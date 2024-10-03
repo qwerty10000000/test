@@ -40,31 +40,57 @@ test: "ok"
 
 memcpy memory test 2
 
-
-;----------------------------------
-
-write %tmp.txt {
-
- BITS 64
-
-mov rax , rcx
-add rax , rdx
-ret
-
-}
-call/console/wait "nasm.exe tmp.txt"
-
-tmp: read %tmp
-
-memcpy memory tmp length? tmp
+offset: 0
 
 &protect: & protect: #{0000000000000000}
 
 
 VirtualProtect memory length? memory PAGE_EXECUTE_READWRITE &protect
 
-add: make routine! compose [[a [pointer] b [pointer] return: [pointer]]	&memory ]
 
-add 3 4
+
+;----------------------------------
+
+compile: func [ name spec tmp ][
+
+ write %tmp.txt ajoin [  {
+
+ BITS 64
+
+} tmp 
+
+{ret} 
+
+]
+call/console/wait "nasm.exe tmp.txt"
+
+tmp: read %tmp
+
+
+
+memcpy (skip memory  offset )  tmp length? tmp
+
+; source spec
+
+ ptr: make routine!   reduce [ spec (&memory +  offset ) ]
+
+offset: offset + length? tmp
+
+return :ptr
+
+]
+
+
+;-------------------------------------
+
+
+add: compile "add" [a [pointer] b [pointer] return: [pointer]] {
+
+mov rax , rcx
+add rax , rdx
+
+}
+
+probe add 1 2
 
 halt
