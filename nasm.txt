@@ -68,7 +68,7 @@ tmp: read %tmp
 
 
 
-memcpy (skip memory  offset )  tmp length? tmp
+memcpy (skip memory  offset )  tmp length? tmp 
 
 ; source spec
 
