@@ -44,12 +44,11 @@ offset: 0
 
 &protect: & protect: #{0000000000000000}
 
-
 VirtualProtect memory length? memory PAGE_EXECUTE_READWRITE &protect
 
 
-
 ;----------------------------------
+
 
 compile: func [ name spec tmp ][
 
@@ -68,7 +67,7 @@ tmp: read %tmp
 
 
 
-memcpy (skip memory  offset )  tmp length? tmp 
+memcpy (skip memory  offset )  tmp length? tmp
 
 ; source spec
 
@@ -92,5 +91,57 @@ add rax , rdx
 }
 
 probe add 1 2
+
+;---------------------------
+
+sub: compile "sub" [a [pointer] b [pointer] return: [pointer]] {
+
+mov rax , rcx
+sub rax , rdx
+
+}
+
+probe sub 3 2
+
+;--------------------------------------
+
+mul: compile "mul" [a [pointer] b [pointer] return: [pointer]] {
+
+mov rax , rcx
+mul rdx
+
+}
+
+probe mul 3 2
+
+;------------------------------------------------------
+
+div: compile "div" [a [pointer] b [pointer] return: [pointer]] {
+
+mov rax , rcx
+mov rcx , rdx
+cqo
+idiv rcx
+
+}
+
+probe div 6 2
+
+;---------------------------------------------------
+
+popcnt: compile "popcnt" [a [pointer]  return: [pointer]] {
+
+POPCNT rax , rcx
+
+
+}
+
+probe popcnt   4294967295 ; 32
+
+;popcnt 281474976710655 ; 48
+
+; popcnt  9223372036854775807 ; 63
+
+; popcnt -1 = 64
 
 halt
