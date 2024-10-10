@@ -46,11 +46,12 @@ offset: 0
 
 VirtualProtect memory length? memory PAGE_EXECUTE_READWRITE &protect
 
+offsets: clear copy []
 
 ;----------------------------------
 
 
-compile: func [ name spec tmp ][
+compile: func [ name spec tmp ][source tmp
 
  write %tmp.txt ajoin [  {
 
@@ -72,6 +73,8 @@ memcpy (skip memory  offset )  tmp length? tmp
 ; source spec
 
  ptr: make routine!   reduce [ spec (&memory +  offset ) ]
+
+insert tail offsets reduce [ name    offset  ]
 
 offset: offset + length? tmp
 
@@ -143,5 +146,33 @@ probe popcnt   4294967295 ; 32
 ; popcnt  9223372036854775807 ; 63
 
 ; popcnt -1 = 64
+
+;-------------------------------------------------------------
+
+jmp: compile "jmp" [a [pointer] b [pointer] return: [pointer]] ajoin [ {
+
+
+jmp  } offsets/("add") - offset {
+
+
+
+} ]
+
+probe jmp 3 4
+
+;---------------------------------------------------------
+
+
+loop: compile "loop" [a [pointer]  return: [pointer]] {
+
+mov rax , 0
+
+label:
+add rax , 1
+loop label
+}
+
+dt [probe loop 1000000000 ] ; php 10s
+
 
 halt
