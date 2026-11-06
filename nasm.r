@@ -4,7 +4,7 @@ print "nasm"
 
 ; RAX, RCX, RDX, R8, R9, R10, R11 windows
 
-; RDI, RSI, RDX, RCX, R8, R9  linux
+; RDI, RSI, RDX, RCX, R8, R9 , R10 linux
 
 ;libc: make library! %libc.so.6
 
@@ -21,6 +21,10 @@ memcpy:  make routine! compose [[desc [pointer]  src [pointer] len [int64] retur
 
 memset: make routine! compose [[desc [pointer]  src [pointer] len [int64] return: [uint64]] (msvcrt) "memset"]
 
+sprintf: make routine! compose [[ buffer [pointer] fmt [pointer]  val [pointer]  return: [uint64]] (msvcrt) "sprintf"]
+
+printf: make routine!   compose [[ format [pointer] text [pointer]    return: [uint64]]   (msvcrt) "printf"]
+
 
 
 ;------------------------------------
@@ -33,9 +37,6 @@ PAGE_EXECUTE_READWRITE: to-integer #{40}
 
 
 ;--------------------------------------------------
-
-
-;---------------------------
 
 memory: to-binary make bitset! 16000
 
@@ -144,11 +145,11 @@ POPCNT rax , rcx
 
 }
 
-probe popcnt   4294967295 ; 32
+;probe popcnt   4294967295 ; 32
 
 ;popcnt 281474976710655 ; 48
 
-; popcnt  9223372036854775807 ; 63
+probe popcnt  9223372036854775807 ; 63
 
 ; popcnt -1 = 64
 
@@ -165,10 +166,60 @@ jmp  } offsets/("add") - offset {
 
 probe jmp 3 4
 
+;------------------------------------------
+
+
+
+call*: compile "call" [a [pointer] b [pointer] return: [pointer]] ajoin [ {
+
+
+call  } offsets/("add") - offset {
+
+
+
+
+} ]
+
+probe call* 3 4
+
+
+;-------------------------------------
+
+;---------------------------------------------------------
+f: func [ a [integer!]     b [integer!] ][  print "ok"return a + b]
+
+cb: make callback! [ [ a [pointer]b [pointer]  return: [int64] ]  :f]
+
+
+
+addr: (reflect cb 'addr)
+
+callback: make routine! compose [[a [pointer]b [pointer]return: [pointer]] addr]
+
+probe callback 3 4
+
+
+
+callback: compile "callback" [a [pointer] b [pointer] return: [pointer]] ajoin [ {
+
+
+
+
+ mov rax , }addr {
+sub rsp, 40 
+call rax
+add rsp ,  40 
+
+
+
+} ]
+
+probe callback 1 2
+
 ;---------------------------------------------------------
 
 
-loop: compile "loop" [a [pointer]  return: [pointer]] {
+loop*: compile "loop*" [a [pointer]  return: [pointer]] {
 
 mov rax , 0
 
@@ -177,7 +228,7 @@ add rax , 1
 loop label
 }
 
-dt [probe loop 1000000000 ] ; php 10s , red 48s
+probe dt [probe loop* 1000000000 ] ; php 10s , red 48s , vps 2.5 s
 
 ;--------------------------------------------
 
@@ -202,76 +253,221 @@ xor rax , rdx
 probe xor  7 3
 ;--------------------------
 
-xmm0:  make struct! [s [uint8 [16]]]
+ymm0:  make struct! [s [uint16 [8]]]
 
-xmm0/s: [ 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 ] ; 128 bit
-
-&xmm0: (reflect xmm0 'addr)
-
-
-xmm1:  make struct! [s [uint8 [16]]]
-
-xmm1/s: [ 1  2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 ] ; 
-
-&xmm1: (reflect xmm1 'addr)
-
-
-;--------------------------------------------------
-
-pand: compile "pand" [a [pointer] b [pointer] return: [pointer]] {; 128 bit
-
-movdqu xmm0 , [rcx]
- pand  xmm0 , [rdx]
-movdqu [rcx] , xmm0
-
-}
-
-probe pand &xmm0 &xmm1
-source xmm0
-
-;---------------------------
-
-
-xmm0/s: [ 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 ]
-
-pxor: compile "pxor" [a [pointer] b [pointer] return: [pointer]] {
-
-movdqu xmm0 , [rcx]
- pxor  xmm0 , [rdx]
-movdqu [rcx] , xmm0
-
-}
-
-; F30F6F01660FEF02F30F7F01C3
-
-probe pxor &xmm0 &xmm1
-source xmm0
-source xmm1
-;------------------------------------
-
-
-ymm0:  make struct! [s [uint8 [32]]]
-
-ymm0/s: [ 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1] 
+ymm0/s: [ 1 1 1 1 1 1 1 1  ] ; 128 bit
 
 &ymm0: (reflect ymm0 'addr)
 
 
-ymm1:  make struct! [s [uint8 [32]]]
+ymm1:  make struct! [s [uint16 [8]]]
 
-ymm1/s: [ 1  2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32] 
+ymm1/s: [ 1  2 3 4 5 6 7 8  ] ; 
 
 &ymm1: (reflect ymm1 'addr)
 
 
-ymm2:  make struct! [s [uint8 [32]]]
+;--------------------------------------------------
+
+pand: compile "pand" [a [pointer] b [pointer]  return: [pointer]] {; 128bit and
+
+movdqu xmm0 , [rcx]
+movdqu xmm1 , [ rdx]
+
+ pand   xmm0 , xmm1
+movdqu [rcx] , xmm0
+
+}
+
+probe pand  &ymm0 &ymm1
+source ymm0
+
+;---------------------------
+
+ymm0:  make struct! [s [uint16 [16]]]
+
+ymm0/s: [ 1 1 1 1 1 1 1 1  1 1 1 1 1 1 1 1 ] ; 256 bit
+
+&ymm0: (reflect ymm0 'addr)
+
+
+ymm1:  make struct! [s [uint16 [16]]]
+
+ymm1/s: [ 17 18  19 20 21 22 23 24 25 26 27 28 29 30 31 32  ] ; 
+
+&ymm1: (reflect ymm1 'addr)
+
+ymm2:  make struct! [s [uint16 [16]]]
+
+ymm2/s: [ 1  2 3 4 5 6 7 8  9 10 11 12 13 14 15 16 ] ; 
 
 &ymm2: (reflect ymm2 'addr)
 
-ymm2/s: [ 1  2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32] ; 
+vpxor: compile "vpxor" [a [pointer] b [pointer] c [pointer] return: [pointer]] { ;256 bit xor
+
+vmovdqu ymm0 , [rcx]
+vmovdqu ymm1 , [ rdx]
+vmovdqu ymm2 , [ r8]
+ vpxor  ymm0 , ymm1 , ymm2
+vmovdqu [rcx] , ymm0
+
+}
+
+probe vpxor &ymm0 &ymm1 &ymm2
+source ymm0
 
 
+;------------------------------------
 
+
+ymm0:  make struct! [s [uint16 [16]]]
+
+ymm0/s: [ 1 1 1 1 1 1 1 1  1 1 1 1 1 1 1 1 ] ; 256 bit
+
+&ymm0: (reflect ymm0 'addr)
+
+
+ymm1:  make struct! [s [uint16 [16]]]
+
+ymm1/s: [ 17 18  19 20 21 22 23 24 25 26 27 28 29 30 31 32  ] ; 
+
+&ymm1: (reflect ymm1 'addr)
+
+ymm2:  make struct! [s [uint16 [16]]]
+
+ymm2/s: [ 1  2 3 4 5 6 7 8  9 10 11 12 13 14 15 16 ] ; 
+
+&ymm2: (reflect ymm2 'addr)
+
+vpand: compile "vpand" [a [pointer] b [pointer] c [pointer] return: [pointer]] { ;256 bit and
+
+vmovdqu ymm0 , [rcx]
+vmovdqu ymm1 , [ rdx]
+vmovdqu ymm2 , [ r8]
+vpand  ymm0 , ymm1 , ymm2
+vmovdqu [rcx] , ymm0
+
+}
+
+probe vpand &ymm0 &ymm1 &ymm2
+source ymm0
+;------------------------------------
+
+ymm0:  make struct! [s [uint16 [16]]]
+
+ymm0/s: [ 1 1 1 1 1 1 1 1  1 1 1 1 1 1 1 1 ] ; 256 bit
+
+&ymm0: (reflect ymm0 'addr)
+
+
+ymm1:  make struct! [s [uint16 [16]]]
+
+ymm1/s: [ 17 18  19 20 21 22 23 24 25 26 27 28 29 30 31 32  ] ; 
+
+&ymm1: (reflect ymm1 'addr)
+
+ymm2:  make struct! [s [uint16 [16]]]
+
+ymm2/s: [ 1  2 3 4 5 6 7 8  9 10 11 12 13 14 15 16 ] ; 
+
+&ymm2: (reflect ymm2 'addr)
+
+vpor: compile "vpand" [a [pointer] b [pointer] c [pointer] return: [pointer]] { ;256 bit or
+
+vmovdqu ymm0 , [rcx]
+vmovdqu ymm1 , [ rdx]
+vmovdqu ymm2 , [ r8]
+vpor  ymm0 , ymm1 , ymm2
+vmovdqu [rcx] , ymm0
+
+}
+
+probe vpor &ymm0 &ymm1 &ymm2
+source ymm0
+
+;------------------------------------------
+
+zmm0:  make struct! [s [uint64 [8]]]
+
+&zmm0: (reflect zmm0 'addr)
+
+zmm1:  make struct! [s [uint64 [8]]]
+
+&zmm1: (reflect zmm1 'addr)
+
+zmm1/s: [ 9 10 11 12 13 14 15 16 ] ; 
+
+zmm2:  make struct! [s [uint64 [8]]]
+
+&zmm2: (reflect zmm2 'addr)
+
+zmm2/s: [ 1  2 3 4 5 6 7 8  ] ; 
+
+; axv 512 bit
+
+VPOPCNTQ: compile "VPOPCNTQ" [a [pointer]  return: [pointer]] { ; 512 bit popcount
+
+
+vpopcntq zmm0, [rcx] 
+vmovdqu64 [rcx] ,  zmm0
+} 
+
+probe VPOPCNTQ &zmm2
+source zmm2
+
+;-----------------------
+
+VPORQ: compile "VPORQ" [a [pointer] b [pointer] c [pointer]  return: [pointer]] { ; 512 bit or
+
+
+vmovdqu64 zmm1, [rcx] 
+
+vmovdqu64 zmm2, [rdx] 
+
+VPORQ zmm0, zmm1, zmm2
+
+vmovdqu64 [r8] ,  zmm0
+} 
+
+probe VPORQ &zmm1 &zmm2 &zmm0
+source zmm0
+
+;--------------------------------------
+
+
+VPXORQ: compile "VPXORQ" [a [pointer] b [pointer] c [pointer]  return: [pointer]] { ; 512 bit xor
+
+
+vmovdqu64 zmm1, [rcx] 
+
+vmovdqu64 zmm2, [rdx] 
+
+vpxorq zmm0, zmm1, zmm2
+
+vmovdqu64 [r8] ,  zmm0
+} 
+
+probe VPXORQ &zmm1 &zmm2 &zmm0
+source zmm0
+;-------------------------------------------
+
+
+VPANDQ: compile "VPANDQ" [a [pointer] b [pointer] return: [pointer]] { ; 512 bit and
+
+
+vmovdqu64 zmm1, [rcx] 
+
+vmovdqu64 zmm2, [rdx] 
+
+VPANDQ zmm0, zmm1, zmm2
+
+vmovdqu64 [rcx] ,  zmm0
+} 
+
+probe VPANDQ &zmm1 &zmm2 &zmm0
+source zmm0
+
+halt
 ;-------------------------------------------
 
 
